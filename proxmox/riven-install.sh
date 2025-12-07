@@ -230,6 +230,7 @@ WorkingDirectory=/opt/riven-frontend
 EnvironmentFile=/etc/riven/frontend.env
 Environment=PROTOCOL_HEADER=x-forwarded-proto
 Environment=HOST_HEADER=x-forwarded-host
+Environment=ORIGIN=http://localhost:3000
 ExecStart=/usr/bin/node /opt/riven-frontend/build
 Restart=on-failure
 RestartSec=5
