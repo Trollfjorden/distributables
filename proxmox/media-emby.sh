@@ -60,18 +60,30 @@ install_emby_media_server() {
 	    return 1
 	  fi
 	
-	  msg_info "Installing Emby Media Server (${LATEST})"
-	  if ! ${APT_STD} dpkg -i "${DEB_PATH}"; then
-	    msg_error "dpkg reported issues while installing Emby; attempting to fix dependencies"
-	    if ! ${APT_STD} apt-get install -f -y; then
-	      msg_error "Failed to resolve Emby dependencies"
-	      rm -f "${DEB_PATH}"
+		  msg_info "Installing Emby Media Server (${LATEST})"
+		  if ! ${APT_STD} dpkg -i "${DEB_PATH}"; then
+		    msg_error "dpkg reported issues while installing Emby; attempting to fix dependencies"
+		    if ! ${APT_STD} apt-get install -f -y; then
+		      msg_error "Failed to resolve Emby dependencies"
+		      rm -f "${DEB_PATH}"
+		      return 1
+		    fi
+		  fi
+		  rm -f "${DEB_PATH}"
 
 		  # Emby and Jellyfin both default to port 8096. To avoid a conflict when
 		  # both are installed in the same container, move Emby to 8097.
-		  # Emby's config is typically stored under /var/lib/emby/config/system.xml.
-		  # We only change the values if they are still at the default 8096.
+		  # Emby's config is typically stored under /var/lib/emby/config/system.xml,
+		  # but it may not exist immediately. Give it a short window to appear.
 		  local EMBY_CONFIG="/var/lib/emby/config/system.xml"
+		  local wait_secs=0
+		  if systemctl list-unit-files | grep -q '^emby-server\.service'; then
+		    systemctl start emby-server 2>/dev/null || true
+		  fi
+		  while [ "$wait_secs" -lt 10 ] && [ ! -f "$EMBY_CONFIG" ]; do
+		    sleep 1
+		    wait_secs=$((wait_secs + 1))
+		  done
 		  if [ -f "$EMBY_CONFIG" ]; then
 		    msg_info "Reconfiguring Emby HTTP port to 8097 to avoid Jellyfin conflict"
 		    sed -i \
@@ -80,10 +92,6 @@ install_emby_media_server() {
 		      "$EMBY_CONFIG" 2>/dev/null || true
 		    systemctl restart emby-server 2>/dev/null || true
 		  fi
-	      return 1
-	    fi
-	  fi
-	  rm -f "${DEB_PATH}"
 
 	  # Adjust ssl-cert/render groups for Emby (best-effort).
 	  if [[ "${CTTYPE:-1}" == "0" ]]; then
