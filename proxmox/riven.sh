@@ -122,7 +122,7 @@ if [ -n "$MEDIA_SERVERS" ]; then
 				echo -e "  Jellyfin: ${BL}http://${RIVEN_CT_IP}:8096${CL}"
 				;;
 			emby)
-				echo -e "  Emby:     ${BL}http://${RIVEN_CT_IP}:8096${CL}"
+					echo -e "  Emby:     ${BL}http://${RIVEN_CT_IP}:8097${CL}"
 				;;
 			*)
 				;;
