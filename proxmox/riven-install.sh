@@ -28,13 +28,130 @@ else
   INSTALL_FRONTEND="no"
 fi
 
+# ------------------------------------------------------------
+# Optional media server installers inside this Riven container
+#
+# The heavy install logic for Plex/Jellyfin/Emby lives in separate
+# proxmox/media-*.sh scripts. We fetch and source those on demand so
+# this main installer stays tidy. Errors in media server installs
+# must never abort the core Riven installation.
+# ------------------------------------------------------------
+
+run_media_installer() {
+	local NAME="$1" URL="$2" FUNC="$3"
+	local SRC
+
+	if ! SRC="$(curl -fsSL "$URL")"; then
+		msg_error "Failed to download ${NAME} installer script; skipping ${NAME} installation"
+		return 1
+	fi
+
+	if ! source /dev/stdin <<<"$SRC"; then
+		msg_error "Failed to load ${NAME} installer script; skipping ${NAME} installation"
+		return 1
+	fi
+
+	if ! "$FUNC"; then
+		msg_error "${NAME} installation encountered an error; continuing without ${NAME}"
+		return 1
+	fi
+
+	# Record successful installation so the host helper can show
+	# accurate media server URLs in its completion message.
+	local MEDIA_FILE="/etc/riven/media-servers.txt"
+	local ID
+	ID=$(echo "$NAME" | tr '[:upper:] ' '[:lower:]-')
+	mkdir -p /etc/riven
+	if ! grep -qx "$ID" "$MEDIA_FILE" 2>/dev/null; then
+		printf '%s\n' "$ID" >>"$MEDIA_FILE"
+	fi
+
+	return 0
+}
+
+prompt_media_servers() {
+	# Prefer a whiptail checklist for a clear multi-select UI. If whiptail is
+	# unavailable (non-interactive or missing), fall back to a simple
+	# read-based prompt.
+	local MEDIA_CHOICES=""
+	if command -v whiptail >/dev/null 2>&1 && [ -t 1 ]; then
+		MEDIA_CHOICES=$(whiptail --title "Riven Media Servers" \
+			--checklist "Select optional media servers to install inside this Riven container.\n\nUse SPACE to toggle, TAB to move, and ENTER to confirm.\nSelect none to skip this step." \
+			20 78 6 \
+			"plex" "Plex Media Server" OFF \
+			"jellyfin" "Jellyfin media server" OFF \
+			"emby" "Emby media server" OFF \
+			3>&1 1>&2 2>&3) || {
+			msg_info "Skipping media server installation (dialog canceled)"
+			return
+		}
+		# whiptail returns items like: "plex" "emby"; strip quotes.
+		MEDIA_CHOICES="$(echo "$MEDIA_CHOICES" | tr -d '"')"
+	fi
+
+	# Nothing selected -> skip
+	if [[ -z "$MEDIA_CHOICES" ]]; then
+		msg_info "Skipping media server installation (none selected)"
+		rm -f /etc/riven/media-servers.txt 2>/dev/null || true
+		return
+	fi
+
+	local WANT_PLEX=0
+	local WANT_JELLYFIN=0
+	local WANT_EMBY=0
+
+	for token in $MEDIA_CHOICES; do
+		case "$token" in
+			1|plex)
+				WANT_PLEX=1
+				;;
+			2|jellyfin)
+				WANT_JELLYFIN=1
+				;;
+			3|emby)
+				WANT_EMBY=1
+				;;
+			0|none|skip)
+				WANT_PLEX=0
+				WANT_JELLYFIN=0
+				WANT_EMBY=0
+				;;
+		esac
+	done
+
+	if (( WANT_PLEX == 0 && WANT_JELLYFIN == 0 && WANT_EMBY == 0 )); then
+		msg_info "Skipping media server installation (none selected)"
+		rm -f /etc/riven/media-servers.txt 2>/dev/null || true
+		return
+	fi
+
+	if (( WANT_PLEX == 1 )); then
+		run_media_installer \
+			"Plex" \
+			"https://raw.githubusercontent.com/rivenmedia/distributables/main/proxmox/media-plex.sh" \
+			install_plex_media_server
+	fi
+	if (( WANT_JELLYFIN == 1 )); then
+		run_media_installer \
+			"Jellyfin" \
+			"https://raw.githubusercontent.com/rivenmedia/distributables/main/proxmox/media-jellyfin.sh" \
+			install_jellyfin_media_server
+	fi
+	if (( WANT_EMBY == 1 )); then
+		run_media_installer \
+			"Emby" \
+			"https://raw.githubusercontent.com/rivenmedia/distributables/main/proxmox/media-emby.sh" \
+			install_emby_media_server
+	fi
+}
+
 msg_info "Installing Dependencies"
 $STD apt-get update
 $STD apt-get install -y \
-  curl sudo mc git ffmpeg vim \
-  python3 python3-venv python3-dev build-essential libffi-dev libpq-dev libfuse3-dev pkg-config \
-  fuse3 libcap2-bin ca-certificates openssl \
-  postgresql postgresql-contrib postgresql-client
+	curl sudo mc git ffmpeg vim whiptail \
+	python3 python3-venv python3-dev build-essential libffi-dev libpq-dev libfuse3-dev pkg-config \
+	fuse3 libcap2-bin ca-certificates openssl \
+	postgresql postgresql-contrib postgresql-client
 msg_ok "Installed Dependencies"
 
 msg_info "Configuring FUSE"
@@ -291,6 +408,8 @@ fi
 
 motd_ssh
 customize
+
+prompt_media_servers
 
 msg_info "Cleaning up"
 $STD apt-get -y autoremove

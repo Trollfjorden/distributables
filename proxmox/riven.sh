@@ -66,8 +66,8 @@ function default_settings() {
 }
 
 function update_script() {
-  msg_error "No ${APP} update script is available yet."
-  exit 1
+	msg_error "No ${APP} update script is available yet."
+	exit 1
 }
 
 start
@@ -103,15 +103,31 @@ else
 	echo -e "You can host it elsewhere and point it at the backend URL above.\n"
 fi
 
+# If the in-container installer recorded any media servers, show their
+# default URLs here. The file is managed by proxmox/riven-install.sh.
+MEDIA_FILE="${RIVEN_CT_ROOTFS}/etc/riven/media-servers.txt"
+if [ -f "$MEDIA_FILE" ]; then
+	MEDIA_SERVERS=$(tr '\n' ' ' <"$MEDIA_FILE" | sed -e 's/[[:space:]]\+$//')
+	if [ -n "$MEDIA_SERVERS" ]; then
+		echo -e "Optional media servers installed in this container: ${BL}${MEDIA_SERVERS}${CL}\n"
+		while IFS= read -r srv; do
+			case "$srv" in
+				plex)
+					echo -e "  Plex:     ${BL}http://${RIVEN_CT_IP}:32400/web${CL}"
+					;;
+				jellyfin)
+					echo -e "  Jellyfin: ${BL}http://${RIVEN_CT_IP}:8096${CL}"
+					;;
+				emby)
+					echo -e "  Emby:     ${BL}http://${RIVEN_CT_IP}:8096${CL}"
+					;;
+				*)
+					;;
+			esac
+		done <"$MEDIA_FILE"
+		echo
+	fi
+fi
+
 echo -e "Backend settings file inside the container:"
 echo -e "  ${BL}/riven/src/data/settings.json${CL}\n"
-
-echo -e "To share your media into this Riven container and a media server container (Plex/Jellyfin/Emby):"
-echo -e "  1) On the Proxmox host, choose or create a media folder (for example):"
-echo -e "       ${BL}/mnt/media${CL}"
-echo -e "  2) Still on the Proxmox host, add that folder to the Riven container (IDs/path filled in for you):"
-echo -e "       ${BL}pct set ${RIVEN_CT_ID} -mp0 /mnt/media,mp=/mnt/riven${CL}"
-echo -e "  3) Then add the same folder to your media server container (Plex/Jellyfin/Emby/etc):"
-echo -e "       ${BL}pct set <MEDIA_CT_ID> -mp1 /mnt/media,mp=/mnt/riven${CL}\n"
-echo -e "Make sure the host media folder is world-readable so the riven user can read the files:"
-echo -e "       ${BL}chmod 755 /mnt/media${CL}\n"
