@@ -299,11 +299,11 @@ if [ "$INSTALL_FRONTEND" = "yes" ]; then
   fi
   cd /opt/riven-frontend
   if command -v pnpm >/dev/null 2>&1; then
-    if ! pnpm install >/dev/null 2>&1; then
+    if ! $STD pnpm install; then
       msg_error "pnpm install failed while installing Riven frontend"
       exit 1
     fi
-    if ! pnpm run build >/dev/null 2>&1; then
+    if ! $STD pnpm run build; then
       msg_error "pnpm run build failed while building Riven frontend"
       exit 1
     fi
