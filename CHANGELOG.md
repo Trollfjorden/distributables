@@ -15,6 +15,9 @@
 - **Frontend Build Memory**:
     - Added `NODE_OPTIONS="--max-old-space-size=6144"` to `riven-install.sh`.
     - Fixes `JavaScript heap out of memory` errors during `pnpm run build` by allowing Node.js to use up to 6GB RAM.
+- **Frontend Service**:
+    - Fixed invalid `ExecStart` syntax in `riven-frontend.service` (removed broken `ORIGIN=${ORIGIN}` prefix).
+    - Ensures the systemd service starts correctly after installation.
 - **Default Install Logic**:
     - Restored missing `default_settings` function in `build.func`.
     - Updated `install_script` to explicitly prompt "Use Default Settings?" allowing a One-Click install experience.
