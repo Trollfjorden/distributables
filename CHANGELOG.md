@@ -9,6 +9,12 @@
     - Removed restrictions forcing Riven to Debian 12.
 
 ### Fixed
+- **Verbose Logging**:
+    - Replaced silent `> /dev/null` redirection with `$STD` variable for `pnpm` commands in `riven-install.sh`.
+    - Enables debugging of frontend build failures when "Verbose" mode is selected.
+- **Frontend Build Memory**:
+    - Added `NODE_OPTIONS="--max-old-space-size=6144"` to `riven-install.sh`.
+    - Fixes `JavaScript heap out of memory` errors during `pnpm run build` by allowing Node.js to use up to 6GB RAM.
 - **Default Install Logic**:
     - Restored missing `default_settings` function in `build.func`.
     - Updated `install_script` to explicitly prompt "Use Default Settings?" allowing a One-Click install experience.

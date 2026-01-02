@@ -299,6 +299,7 @@ if [ "$INSTALL_FRONTEND" = "yes" ]; then
   fi
   cd /opt/riven-frontend
   if command -v pnpm >/dev/null 2>&1; then
+    export NODE_OPTIONS="--max-old-space-size=6144"
     if ! $STD pnpm install; then
       msg_error "pnpm install failed while installing Riven frontend"
       exit 1
