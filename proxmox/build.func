@@ -166,16 +166,38 @@ exit-script() {
   exit
 }
 
+# This function sets the default values for various settings.
+default_settings() {
+  CT_TYPE="1"
+  PW=""
+  CT_ID=$NEXTID
+  HN=$NSAPP
+  DISK_SIZE="$var_disk"
+  CORE_COUNT="$var_cpu"
+  RAM_SIZE="$var_ram"
+  BRG="vmbr0"
+  NET="dhcp"
+  GATE=""
+  APT_CACHER=""
+  APT_CACHER_IP=""
+  DISABLEIP6="no"
+  MTU=""
+  SD=""
+  NS=""
+  MAC=""
+  VLAN=""
+  SSH="no"
+  VERB="no"
+  echo_default
+}
+
 # This function allows the user to configure advanced settings for the script.
 advanced_settings() {
 	whiptail --backtitle "Proxmox VE Helper Scripts" --msgbox --title "Here is an instructional tip:" "To make a selection, use the Spacebar." 8 58
 
 	if [ "${APP:-}" = "Riven" ]; then
-		# For Riven we fix the distribution to the defaults defined in riven.sh
-		# (Debian 12) and do not offer an OS/version choice here.
-		whiptail --backtitle "Proxmox VE Helper Scripts" \
-			--msgbox --title "Default distribution for $APP" \
-			"${var_os} ${var_version} \n \nThis installer is fixed to this distribution for support." 10 58
+		# Riven defaults to Debian 13 but allows overrides via advanced settings
+		:
 	else
 		whiptail --backtitle "Proxmox VE Helper Scripts" --msgbox --title "Default distribution for $APP" "${var_os} ${var_version} \n \nIf the default Linux distribution is not adhered to, script support will be discontinued. \n" 10 58
 		if [ "$var_os" != "alpine" ]; then
@@ -197,9 +219,10 @@ advanced_settings() {
 		if [ "$var_os" == "debian" ]; then
 			var_version=""
 			while [ -z "$var_version" ]; do
-				if var_version=$(whiptail --backtitle "Proxmox VE Helper Scripts" --title "DEBIAN VERSION" --radiolist "Choose Version" 10 58 2 \
+				if var_version=$(whiptail --backtitle "Proxmox VE Helper Scripts" --title "DEBIAN VERSION" --radiolist "Choose Version" 10 58 3 \
 					"11" "Bullseye" OFF \
 					"12" "Bookworm" OFF \
+					"13" "Trixie" OFF \
 					3>&1 1>&2 2>&3); then
 					if [ -n "$var_version" ]; then
 						echo -e "${DGN}Using $var_os Version: ${BGN}$var_version${CL}"
@@ -551,6 +574,7 @@ advanced_settings() {
   fi
 }
 
+
 install_script() {
   pve_check
   shell_check
@@ -563,18 +587,27 @@ install_script() {
   fi
   NEXTID=$(pvesh get /cluster/nextid)
   timezone=$(cat /etc/timezone)
-	header_info
-	echo -e "${RD}Using Advanced Settings${CL}"
-	advanced_settings
-}
-
-start() {
   if command -v pveversion >/dev/null 2>&1; then
     if ! (whiptail --backtitle "Proxmox VE Helper Scripts" --title "${APP} LXC" --yesno "This will create a new ${APP} LXC. Proceed?" 10 58); then
       clear
       echo -e "⚠  User exited script \n"
       exit
     fi
+  fi
+  
+  if (whiptail --backtitle "Proxmox VE Helper Scripts" --title "SETTINGS" --yesno "Use Default Settings?" --no-button Advanced 10 58); then
+    header_info
+    echo -e "${DGN}Using Default Settings${CL}"
+    default_settings
+  else
+    header_info
+    echo -e "${RD}Using Advanced Settings${CL}"
+    advanced_settings
+  fi
+}
+
+start() {
+  if command -v pveversion >/dev/null 2>&1; then
     SPINNER_PID=""
     install_script
   fi
@@ -643,7 +676,7 @@ build_container() {
     $PW
   "
   # This executes create_lxc.sh and creates the container and .conf file
-  bash -c "$(wget -qLO - https://raw.githubusercontent.com/tteck/Proxmox/main/ct/create_lxc.sh)" || exit
+  bash -c "$(wget -qLO - https://raw.githubusercontent.com/Trollfjorden/distributables/main/proxmox/create_lxc.sh)" || exit
 
   LXC_CONFIG=/etc/pve/lxc/${CTID}.conf
   if [ "$CT_TYPE" == "0" ]; then
@@ -715,20 +748,18 @@ http://dl-cdn.alpinelinux.org/alpine/latest-stable/community
 EOF'
     pct exec "$CTID" -- ash -c "apk add bash >/dev/null"
   fi
-	  lxc-attach -n "$CTID" -- bash -c "$(wget -qLO - https://raw.githubusercontent.com/rivenmedia/distributables/main/proxmox/$var_install.sh)" || exit
+	  lxc-attach -n "$CTID" -- bash -c "$(wget -qLO - https://raw.githubusercontent.com/Trollfjorden/distributables/main/proxmox/$var_install.sh)" || exit
 
 }
 
 # This function sets the description of the container.
 description() {
   IP=$(pct exec "$CTID" ip a s dev eth0 | awk '/inet / {print $2}' | cut -d/ -f1)
-  pct set "$CTID" -description "<div align='center'><a href='https://Helper-Scripts.com' target='_blank' rel='noopener noreferrer'><img src='https://raw.githubusercontent.com/tteck/Proxmox/main/misc/images/logo-81x112.png'/></a>
-
-  # ${APP} LXC
-
-  <a href='https://ko-fi.com/spoked'><img src='https://img.shields.io/badge/&#x2615;-Buy me a coffee-blue' /></a>
+  pct set "$CTID" -description "Riven Media Server LXC
+  
+  <div align='center'>
+    <a href='https://github.com/rivenmedia/riven' target='_blank' rel='noopener noreferrer'>
+      Riven GitHub
+    </a>
   </div>"
-  if [[ -f /etc/systemd/system/ping-instances.service ]]; then
-    systemctl start ping-instances.service
-  fi
 }
