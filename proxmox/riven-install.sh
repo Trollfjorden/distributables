@@ -7,7 +7,14 @@
 # - Installs Riven backend (Python/uv) and frontend (Node/pnpm)
 # - Creates env config in /etc/riven and systemd services for both components
 
-source /dev/stdin <<<"$FUNCTIONS_FILE_PATH"
+# Ensure curl is available to fetch helper functions
+if ! command -v curl >/dev/null 2>&1; then
+  apt update >/dev/null 2>&1
+  apt install -y curl >/dev/null 2>&1
+fi
+
+# Source community-scripts helper functions
+source <(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/misc/install.func)
 color
 verb_ip6
 catch_errors
