@@ -124,8 +124,7 @@ $STD apt-get update
 $STD apt-get install -y \
 	curl sudo mc git ffmpeg vim whiptail gnupg locales \
 	python3 python3-venv python3-dev build-essential libffi-dev libpq-dev libfuse3-dev pkg-config \
-	fuse3 libcap2-bin ca-certificates openssl \
-	postgresql postgresql-contrib postgresql-client
+	fuse3 libcap2-bin ca-certificates openssl
 msg_ok "Installed Dependencies"
 
 msg_info "Configuring Locales"
@@ -155,9 +154,12 @@ else
   msg_ok "Frontend components will not be installed in this container"
 fi
 
+msg_info "Installing PostgreSQL"
+export PG_VERSION="16"
+setup_postgresql
+msg_ok "Installed PostgreSQL"
+
 msg_info "Configuring PostgreSQL"
-$STD systemctl enable postgresql
-$STD systemctl start postgresql
 if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='riven'" | grep -q 1; then
   sudo -u postgres psql -c "CREATE DATABASE riven;" >/dev/null 2>&1 || true
 fi
