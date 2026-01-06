@@ -155,7 +155,7 @@ else
 fi
 
 msg_info "Installing PostgreSQL"
-export PG_VERSION="16"
+export PG_VERSION="18"
 setup_postgresql
 msg_ok "Installed PostgreSQL"
 
