@@ -122,11 +122,16 @@ install_selected_media_servers() {
 msg_info "Installing Dependencies"
 $STD apt-get update
 $STD apt-get install -y \
-	curl sudo mc git ffmpeg vim whiptail gnupg \
+	curl sudo mc git ffmpeg vim whiptail gnupg locales \
 	python3 python3-venv python3-dev build-essential libffi-dev libpq-dev libfuse3-dev pkg-config \
 	fuse3 libcap2-bin ca-certificates openssl \
 	postgresql postgresql-contrib postgresql-client
 msg_ok "Installed Dependencies"
+
+msg_info "Configuring Locales"
+sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen
+locale-gen >/dev/null 2>&1
+msg_ok "Configured Locales"
 
 msg_info "Configuring FUSE"
 echo 'user_allow_other' > /etc/fuse.conf
