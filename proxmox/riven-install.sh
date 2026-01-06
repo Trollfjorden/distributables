@@ -134,15 +134,9 @@ msg_ok "Configured Python capabilities"
 
 if [ "$INSTALL_FRONTEND" = "yes" ]; then
   msg_info "Installing Node.js (24.x) and pnpm"
-  curl -fsSL https://deb.nodesource.com/setup_24.x | bash - >/dev/null 2>&1 || {
-    msg_error "Failed to configure NodeSource repository for Node.js"
-    exit 1
-  }
-  $STD apt-get install -y nodejs
-  npm install -g pnpm >/dev/null 2>&1 || {
-    msg_error "Failed to install pnpm globally"
-    exit 1
-  }
+  export NODE_VERSION="24"
+  export NODE_MODULE="pnpm"
+  setup_nodejs
   msg_ok "Installed Node.js and pnpm"
 else
   msg_info "Skipping Node.js/pnpm install (frontend disabled)"
@@ -187,15 +181,7 @@ chmod 700 /dev/shm/riven-cache || true
 msg_ok "Created Riven user and directories"
 
 msg_info "Installing uv package manager"
-curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null 2>&1 || true
-export PATH="${HOME}/.local/bin:$PATH"
-UV_BIN="${HOME}/.local/bin/uv"
-if [ ! -x "$UV_BIN" ]; then
-  msg_error "uv was not installed correctly"
-  exit 1
-fi
-install -m 755 "$UV_BIN" /usr/local/bin/uv >/dev/null 2>&1 || true
-UV_BIN="/usr/local/bin/uv"
+setup_uv
 msg_ok "Installed uv"
 
 msg_info "Installing Riven backend"
@@ -212,7 +198,7 @@ chown -R riven:riven /riven/src || true
 cd /riven/src
 # Ensure project virtual environment exists
 if [ ! -d .venv ]; then
-	sudo -u riven -H "$UV_BIN" venv >/dev/null 2>&1 || {
+	sudo -u riven -H uv venv >/dev/null 2>&1 || {
 		msg_error "Failed to create Python virtual environment with uv"
 		exit 1
 	}
@@ -223,9 +209,9 @@ if [ -x "$VENV_PY_BIN" ]; then
 	setcap cap_sys_admin+ep "$VENV_PY_BIN" 2>/dev/null || true
 fi
 
-sudo -u riven -H "$UV_BIN" sync --no-dev --frozen >/dev/null 2>&1 || \
-	sudo -u riven -H "$UV_BIN" sync --no-dev >/dev/null 2>&1 || {
-	msg_error "Failed to install Riven backend dependencies with uv"
+sudo -u riven -H uv sync --no-dev --frozen >/dev/null 2>&1 || \
+	sudo -u riven -H uv sync --no-dev >/dev/null 2>&1 || {
+	msg_error "Failed to install Rivenbackend dependencies with uv"
 	exit 1
 }
 chown -R riven:riven /riven
@@ -299,7 +285,6 @@ if [ "$INSTALL_FRONTEND" = "yes" ]; then
   fi
   cd /opt/riven-frontend
   if command -v pnpm >/dev/null 2>&1; then
-    export NODE_OPTIONS="--max-old-space-size=6144"
     if ! $STD pnpm install; then
       msg_error "pnpm install failed while installing Riven frontend"
       exit 1
