@@ -122,7 +122,7 @@ install_selected_media_servers() {
 msg_info "Installing Dependencies"
 $STD apt-get update
 $STD apt-get install -y \
-	curl sudo mc git ffmpeg vim whiptail \
+	curl sudo mc git ffmpeg vim whiptail gnupg \
 	python3 python3-venv python3-dev build-essential libffi-dev libpq-dev libfuse3-dev pkg-config \
 	fuse3 libcap2-bin ca-certificates openssl \
 	postgresql postgresql-contrib postgresql-client
